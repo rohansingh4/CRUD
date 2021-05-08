@@ -1,4 +1,5 @@
-from flask import Flask, render_template, redirect, url_for, request, jsonify
+from flask import Flask, render_template, redirect, url_for, request, jsonify, abort
+import sys
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -18,15 +19,26 @@ db.create_all()
 
 @app.route('/todos/create', methods=['POST'])
 def create_todo():
-  #description = request.form.get('description', '') -----------------------------------------Using standard method without jsonify where whole page is refreshed
-  description = request.get_json()['description']
-  todo = Todo(description=description)
-  db.session.add(todo)
-  db.session.commit()
-  #return redirect(url_for('index'))                 -----------------------------------------Using standard method
-  return jsonify({
-      'description': todo.description
-  })
+  error = False
+  body = {}
+  try:
+    #description = request.form.get('description', '') -----------------------------------------Using standard method without jsonify where whole page is refreshed
+    description = request.get_json()['description']
+    todo = Todo(description=description)
+    db.session.add(todo)
+    db.session.commit()
+    body['description'] = todo.description
+  except:
+      error = True
+      db.session.rollback()
+      print(sys.exc_info())
+  finally:
+    db.session.close()
+    if error:
+        abort(400)
+    else:
+    #return redirect(url_for('index'))                 -----------------------------------------Using standard method
+    return jsonify(body)
 
 @app.route('/')
 def index():
